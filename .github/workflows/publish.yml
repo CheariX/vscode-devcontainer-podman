@@ -151,6 +151,7 @@ jobs:
           touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
           mkdir -p "${RUNNER_TEMP}/versions"
           podman run --rm "$IMG" rpm -q --qf '%{VERSION}' podman > "${RUNNER_TEMP}/versions/${{ matrix.arch }}"
+          podman run --rm "$IMG" rpm -E %fedora > "${RUNNER_TEMP}/versions/fedora-${{ matrix.arch }}"
 
       - name: Upload digest
         if: env.PUSH == 'true'
@@ -195,7 +196,7 @@ jobs:
           pattern: versions-*
           merge-multiple: true
 
-      - name: Podman version
+      - name: Podman and Fedora version
         id: ver
         working-directory: ${{ runner.temp }}/versions
         run: |
@@ -204,6 +205,10 @@ jobs:
           test "$full" = "$(cat arm64)" || { echo "podman version differs between arches" >&2; exit 1; }
           echo "full=${full}" >> "$GITHUB_OUTPUT"
           echo "minor=${full%.*}" >> "$GITHUB_OUTPUT"
+          fedora=$(cat fedora-amd64)
+          test -n "$fedora"
+          test "$fedora" = "$(cat fedora-arm64)" || { echo "Fedora version differs between arches" >&2; exit 1; }
+          echo "fedora=${fedora}" >> "$GITHUB_OUTPUT"
 
       # Version tags only from the default branch, so builds of other branches don't move them.
       # priority=1000: this tag becomes org.opencontainers.image.version
@@ -215,6 +220,7 @@ jobs:
         with:
           images: ${{ env.IMAGE }}
           tags: |
+            type=raw,value=f${{ steps.ver.outputs.fedora }},enable={{is_default_branch}}
             type=raw,value=${{ steps.ver.outputs.minor }},enable={{is_default_branch}}
             type=raw,value=${{ steps.ver.outputs.full }},enable={{is_default_branch}}
             type=raw,value=${{ steps.ver.outputs.full }}-{{date 'YYYYMMDD'}},enable={{is_default_branch}},priority=1000

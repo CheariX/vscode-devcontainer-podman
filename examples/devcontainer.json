@@ -1,6 +1,6 @@
 {
   "name": "my-project",
-  "image": "ghcr.io/chearix/vscode-devcontainer-podman:5.8",
+  "image": "ghcr.io/chearix/vscode-devcontainer-podman:f44",
   // Not allowed in the image label, so it has to be here (rootful Podman machine: add "--device=/dev/net/tun")
   "runArgs": [ "--userns=keep-id:uid=1000,gid=1000" ],
   // Hardening: files that run code on the Mac stay read-only inside the container.

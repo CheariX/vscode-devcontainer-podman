@@ -10,7 +10,7 @@ Made for Podman machine on macOS; works on any Linux host with rootless Podman. 
 
 ```jsonc
 {
-  "image": "ghcr.io/chearix/vscode-devcontainer-podman:5.8",
+  "image": "ghcr.io/chearix/vscode-devcontainer-podman:f44",
   "runArgs": [ "--userns=keep-id:uid=1000,gid=1000" ]
 }
 ```
@@ -40,7 +40,7 @@ Code in the container can modify your project folder, including files that run c
 
 ## Tags
 
-Use `:5.8` (follows Podman 5.8 with monthly Fedora updates). Pin a build with `:5.8.7-YYYYMMDD`. All tags: [docs/reference.md](docs/reference.md#tags).
+Use `:f44`: Fedora 44 with monthly updates, including Podman updates within that release. Switching to the next Fedora (`:f45`) is your call. Pin a build with `:5.8.7-YYYYMMDD`. All tags: [docs/reference.md](docs/reference.md#tags).
 
 ## More
 

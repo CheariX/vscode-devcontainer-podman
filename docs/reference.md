@@ -62,13 +62,14 @@ VS Code's `dotfiles.repository` setting works (also `dotfiles.installCommand` an
 
 | Tag | Moves? | Use |
 |---|---|---|
-| `:5.8` | within Podman 5.8 | recommended |
-| `:5.8.7` | with rebuilds of that Podman version | |
+| `:f44` | within Fedora 44 | recommended |
+| `:5.8` | within Podman 5.8 | stops moving when Fedora ships a newer Podman |
+| `:5.8.7` | with rebuilds of that Podman version | stops moving like `:5.8` |
 | `:5.8.7-YYYYMMDD` | no | pin a specific build / roll back |
 | `:latest`, `:main` | yes | latest build |
 | `:sha-<commit>` | no | build of a specific commit |
 
-Images are rebuilt monthly (Fedora security updates) and only tagged after the test suite has passed on both architectures. They come with SBOM and provenance attestations.
+Images are rebuilt monthly (Fedora security updates). When a new Fedora release comes out, the image moves to it after a tested PR: `:f45` appears, `:f44` stops moving. Images are only tagged after the test suite has passed on both architectures. They come with SBOM and provenance attestations.
 
 ## Limitations
 
