@@ -37,6 +37,7 @@ Not covered are files you run yourself on the Mac: `Makefile`, `package.json` sc
   - Only `newuidmap`/`newgidmap` keep file capabilities, because nested user namespaces need them. That is also why `no-new-privileges` is not used.
 - `podman unshare` and inner containers give root only **inside a child user namespace**, mapped to your own uid. That is intended and harmless.
 - **Inner containers are not a security boundary against the dev container.** They share its user namespace and `/proc`, which nested rootless Podman requires. An inner container can see and signal the dev container's processes, such as the VS Code server and AI agents with their tokens. Run inner images you trust as much as the code in your workspace.
+  - Keep tokens out of environment variables in the dev container: inner containers can read `/proc/<pid>/environ` of its processes. Prefer `podman secret`, credential files with mode `0600`, or the credential helpers VS Code forwards.
 - `/proc/sys` is writable (`securityOpt: unmask=/proc/sys`), because netavark sets `net.ipv4.ip_forward` for podman networks and compose. The kernel only allows sysctls of network namespaces the writing user namespace owns; all others stay read-only, as without the option.
 - The real boundaries are the rootless outer container and the Podman machine VM.
 - Podman machine mounts all of `/Users` into the VM by default. Consider sharing only your code directories:
