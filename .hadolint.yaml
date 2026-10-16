@@ -1,0 +1,3 @@
+# dnf package versions are deliberately not pinned (base image digest and Fedora updates decide)
+ignored:
+  - DL3041

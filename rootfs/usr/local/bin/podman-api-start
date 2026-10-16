@@ -1,0 +1,31 @@
+#!/bin/sh
+# Starts the Podman API service on $DOCKER_HOST (for docker-compose and Docker tooling)
+# and podman-healthcheck-runner. Idempotent; detached with setsid so lifecycle shells
+# cannot take them down.
+set -eu
+
+sock="${DOCKER_HOST:-unix:///tmp/storage-run-1000/podman/podman.sock}"
+sock="${sock#unix://}"
+log="${HOME}/.cache/podman-service.log"
+pidfile="$(dirname "$sock")/healthcheck-runner.pid"
+
+mkdir -p "$(dirname "$log")" "$(dirname "$sock")"
+
+pid="$(cat "$pidfile" 2>/dev/null || true)"
+if [ -z "$pid" ] || ! grep -q podman-healthcheck-runner "/proc/$pid/cmdline" 2>/dev/null; then
+    # shellcheck disable=SC2016 # $$ expands in the inner shell
+    setsid -f sh -c 'echo $$ > "$1"; exec podman-healthcheck-runner' sh "$pidfile" >/dev/null 2>&1 </dev/null
+fi
+
+if [ -S "$sock" ] && podman --url "unix://$sock" version >/dev/null 2>&1; then
+    exit 0
+fi
+
+setsid -f podman system service --time=0 "unix://$sock" >"$log" 2>&1 </dev/null
+
+i=0
+while [ ! -S "$sock" ] && [ "$i" -lt 50 ]; do
+    sleep 0.1
+    i=$((i + 1))
+done
+[ -S "$sock" ] || { echo "podman API did not start, see $log" >&2; exit 1; }

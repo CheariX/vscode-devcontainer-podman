@@ -1,0 +1,274 @@
+name: Build, test and publish
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    # Weekly on Monday at 04:17 UTC (security fixes from Fedora). GitHub disables schedules after 60 days without repo activity.
+    - cron: '17 4 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      labels: ${{ steps.meta.outputs.labels }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint Containerfile
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: Containerfile
+          config: .hadolint.yaml
+          failure-threshold: warning
+
+      - name: Lint shell scripts
+        run: shellcheck rootfs/usr/local/bin/* tests/helpers.bash
+
+      - name: Image name
+        id: vars
+        run: echo "image=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      # Labels only; tags need the podman version, which is known after the build (merge job)
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ steps.vars.outputs.image }}
+          labels: |
+            org.opencontainers.image.title=vscode-devcontainer-podman
+            org.opencontainers.image.description=VS Code devcontainer with rootless Podman-in-Podman, Homebrew and CLI tools
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ needs.prepare.outputs.image }}
+      PUSH: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (PR, local)
+        if: env.PUSH != 'true'
+        uses: docker/build-push-action@v7
+        with:
+          file: Containerfile
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: ${{ env.IMAGE }}:test
+          labels: ${{ needs.prepare.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache-${{ matrix.arch }}
+
+      - name: Build and push by digest
+        id: build
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          file: Containerfile
+          platforms: linux/${{ matrix.arch }}
+          labels: ${{ needs.prepare.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+          # Scheduled/manual runs rebuild from scratch: otherwise the cached dnf upgrade and
+          # Homebrew layers would be reused and updates would never reach the image
+          no-cache: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:buildcache-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.IMAGE }}:buildcache-${{ matrix.arch }},mode=max
+          sbom: true
+          provenance: mode=max
+
+      # Tests need rootless Podman on the runner (same flags as on the Mac); Docker cannot do keep-id.
+      # Ubuntu 24.04 restricts unprivileged user namespaces via AppArmor.
+      - name: Set up rootless Podman and bats
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          # Like Podman machine: new network namespaces copy ip_forward from here. Docker on the
+          # runner sets it to 1, which would hide a read-only /proc/sys in the bridge network tests.
+          sudo sysctl -w net.ipv4.ip_forward=0
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bats podman uidmap
+          podman version
+
+      - name: Select image under test
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$PUSH" = true ]; then
+            echo "$GH_TOKEN" | podman login "$REGISTRY" -u "$GITHUB_ACTOR" --password-stdin
+            img="${IMAGE}@${DIGEST}"
+            podman pull "$img"
+          else
+            img="${IMAGE}:test"
+            docker save "$img" | podman load
+          fi
+          echo "IMG=$img" >> "$GITHUB_ENV"
+
+      # CI only: the runner's AppArmor profile for containers blocks the mounts inner Podman needs.
+      # The Mac (Podman machine, no AppArmor) does not need this.
+      - name: Test
+        run: make test IMG="$IMG" DOCKER=podman EXTRA_RUN_FLAGS="--security-opt=apparmor=unconfined"
+
+      - name: Export digest and podman version
+        if: env.PUSH == 'true'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+          mkdir -p "${RUNNER_TEMP}/versions"
+          podman run --rm "$IMG" rpm -q --qf '%{VERSION}' podman > "${RUNNER_TEMP}/versions/${{ matrix.arch }}"
+
+      - name: Upload digest
+        if: env.PUSH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload podman version
+        if: env.PUSH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: versions-${{ matrix.arch }}
+          path: ${{ runner.temp }}/versions/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Only tested digests get tags
+  merge:
+    if: github.event_name != 'pull_request'
+    needs: [ prepare, build ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ needs.prepare.outputs.image }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Download podman versions
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/versions
+          pattern: versions-*
+          merge-multiple: true
+
+      - name: Podman version
+        id: ver
+        working-directory: ${{ runner.temp }}/versions
+        run: |
+          full=$(cat amd64)
+          test -n "$full"
+          test "$full" = "$(cat arm64)" || { echo "podman version differs between arches" >&2; exit 1; }
+          echo "full=${full}" >> "$GITHUB_OUTPUT"
+          echo "minor=${full%.*}" >> "$GITHUB_OUTPUT"
+
+      # Version tags only from the default branch, so builds of other branches don't move them.
+      # priority=1000: this tag becomes org.opencontainers.image.version
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.ver.outputs.minor }},enable={{is_default_branch}}
+            type=raw,value=${{ steps.ver.outputs.full }},enable={{is_default_branch}}
+            type=raw,value=${{ steps.ver.outputs.full }}-{{date 'YYYYMMDD'}},enable={{is_default_branch}},priority=1000
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=sha
+          labels: |
+            org.opencontainers.image.title=vscode-devcontainer-podman
+            org.opencontainers.image.description=VS Code devcontainer with rootless Podman-in-Podman, Homebrew and CLI tools
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest list
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          ANNOTATIONS: ${{ steps.meta.outputs.annotations }}
+        run: |
+          args=()
+          while IFS= read -r tag; do [ -n "$tag" ] && args+=(-t "$tag"); done <<< "$TAGS"
+          while IFS= read -r ann; do [ -n "$ann" ] && args+=(--annotation "$ann"); done <<< "$ANNOTATIONS"
+          for digest in *; do args+=("${IMAGE}@sha256:${digest}"); done
+          docker buildx imagetools create "${args[@]}"
+
+      - name: Inspect
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          tag=$(head -n1 <<< "$TAGS")
+          docker buildx imagetools inspect "$tag"
+          docker buildx imagetools inspect --raw "$tag" \
+            | jq -e '[.manifests[].platform.architecture] | index("amd64") and index("arm64")'
+
+  notify:
+    needs: [ prepare, build, merge ]
+    if: failure() && github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Open issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Scheduled build failed ($(date -u +%F))" \
+            --body "The scheduled build, test or publish run failed: ${RUN_URL}"

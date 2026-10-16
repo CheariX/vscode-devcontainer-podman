@@ -1,0 +1,20 @@
+{
+  "name": "my-project",
+  "image": "ghcr.io/chearix/vscode-devcontainer-podman:5.8",
+  // Not allowed in the image label, so they have to be here
+  "runArgs": [
+    "--userns=keep-id:uid=1000,gid=1000",
+    "--device=/dev/net/tun"
+  ],
+  // Hardening: files that run code on the Mac stay read-only inside the container.
+  // Bind mounts need existing sources, hence the mkdir.
+  "initializeCommand": "mkdir -p .vscode .git/hooks",
+  "mounts": [
+    "source=${localWorkspaceFolder}/.devcontainer,target=${containerWorkspaceFolder}/.devcontainer,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.vscode,target=${containerWorkspaceFolder}/.vscode,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.git/config,target=${containerWorkspaceFolder}/.git/config,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.git/hooks,target=${containerWorkspaceFolder}/.git/hooks,type=bind,readonly"
+  ],
+  // Optional: project tools via Homebrew
+  "postCreateCommand": "test ! -f .devcontainer/Brewfile || brew bundle --file .devcontainer/Brewfile"
+}

@@ -1,0 +1,13 @@
+services:
+  web:
+    image: quay.io/libpod/busybox:latest
+    command: ["sh", "-c", "mkdir -p /www && echo hello > /www/index.html && exec httpd -f -p 80 -h /www"]
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 1s
+      retries: 30
+  client:
+    image: quay.io/libpod/busybox:latest
+    profiles: ["tools"]

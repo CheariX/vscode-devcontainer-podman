@@ -1,0 +1,30 @@
+#!/bin/sh
+# Runs healthchecks of inner containers. Podman schedules them with systemd timers, which do not
+# exist in the dev container: without this, health stays "starting" forever and
+# `docker compose up --wait` or `depends_on: condition: service_healthy` never finish.
+# Started by podman-api-start. Startup healthchecks (--health-startup-cmd) are not run.
+set -u
+
+state="${XDG_RUNTIME_DIR:-/tmp/storage-run-$(id -u)}/healthcheck-runner"
+mkdir -p "$state"
+
+while :; do
+    ids="$(podman ps -q --filter health=starting --filter health=healthy --filter health=unhealthy 2>/dev/null)"
+    if [ -n "$ids" ]; then
+        now="$(date +%s)"
+        # shellcheck disable=SC2086 # list of container IDs
+        podman inspect $ids 2>/dev/null \
+            | jq -r '.[] | select(.State.Running and .Config.Healthcheck != null)
+                | "\(.Id) \((.Config.Healthcheck.Interval // 0) / 1000000000 | floor)"' \
+            | while read -r id interval; do
+                [ "$interval" -gt 0 ] || interval=30
+                last="$(stat -c %Y "$state/$id" 2>/dev/null || echo 0)"
+                if [ $((now - last)) -ge "$interval" ]; then
+                    touch "$state/$id"
+                    podman healthcheck run "$id" >/dev/null 2>&1 &
+                fi
+            done
+    fi
+    find "$state" -type f -mmin +60 -delete 2>/dev/null
+    sleep 1
+done

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # Proposes the next Fedora release (FROM quay.io/fedora/fedora:44 -> 45); CI tests the PR
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly

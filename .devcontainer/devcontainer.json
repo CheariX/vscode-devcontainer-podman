@@ -1,0 +1,38 @@
+{
+  // Settings, mounts and the storage volume come from the image label devcontainer.metadata.
+  // Deliberately "image" instead of "build": with "build" the Dev Containers CLI reads the
+  // metadata only from the FROM image and drops our LABEL.
+  // initializeCommand builds the image on the host first (DOCKER=docker for Docker).
+  "name": "vscode-devcontainer-podman (dev)",
+  "image": "vscode-devcontainer-podman:dev",
+  "initializeCommand": {
+    "build": [
+      "${localEnv:DOCKER:podman}", "build",
+      "-t", "vscode-devcontainer-podman:dev",
+      "-f", "${localWorkspaceFolder}/Containerfile",
+      "${localWorkspaceFolder}"
+    ],
+    // The read-only mounts below need existing sources
+    "dirs": "mkdir -p .vscode .git/hooks"
+  },
+  "runArgs": [
+    "--userns=keep-id:uid=1000,gid=1000",
+    "--device=/dev/net/tun"
+  ],
+  // Files that run code on the Mac stay read-only inside the container
+  "mounts": [
+    "source=${localWorkspaceFolder}/.devcontainer,target=${containerWorkspaceFolder}/.devcontainer,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.vscode,target=${containerWorkspaceFolder}/.vscode,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.git/config,target=${containerWorkspaceFolder}/.git/config,type=bind,readonly",
+    "source=${localWorkspaceFolder}/.git/hooks,target=${containerWorkspaceFolder}/.git/hooks,type=bind,readonly"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Anthropic.claude-code",
+        "exiasr.hadolint",
+        "jetmartin.bats"
+      ]
+    }
+  }
+}
