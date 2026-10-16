@@ -6,7 +6,7 @@ The `devcontainer.metadata` label in the [Containerfile](../Containerfile) sets 
 
 - user `podman` (uid/gid 1000), `init`, `securityOpt` (`label=disable`, `unmask=/proc/sys`)
 - mounts: the inner storage and Claude Code volumes, `/tmp` as tmpfs, `/dev/net/tun`
-- `DOCKER_HOST`, `CLAUDE_CONFIG_DIR`, `postStartCommand` (API service), fish as VS Code terminal
+- `DOCKER_HOST`, `CLAUDE_CONFIG_DIR`, `onCreateCommand` and `postStartCommand` (API service; onCreate runs before dotfiles, postStart on every start), fish as VS Code terminal
 
 `--userns=keep-id:uid=1000,gid=1000` maps your Mac user to `podman`, so workspace files belong to you on both sides.
 

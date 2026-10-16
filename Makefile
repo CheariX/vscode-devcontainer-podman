@@ -3,7 +3,7 @@ PLATFORM ?=
 # Docker works for building; tests need Podman (keep-id, nested rootless)
 DOCKER ?= podman
 BATS_FLAGS ?= --timing --print-output-on-failure
-# Extra flags for the outer container in tests, e.g. --security-opt=apparmor=unconfined in CI
+# Extra flags for the outer container in tests
 EXTRA_RUN_FLAGS ?=
 export IMG DOCKER EXTRA_RUN_FLAGS
 

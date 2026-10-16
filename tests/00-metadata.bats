@@ -31,6 +31,7 @@ setup_file() {
 @test "DOCKER_HOST and API service are configured" {
     jq -e 'any(.[]; .containerEnv.DOCKER_HOST == "unix:///tmp/storage-run-1000/podman/podman.sock")' <<<"$META"
     jq -e 'any(.[]; .postStartCommand == "/usr/local/bin/podman-api-start")' <<<"$META"
+    jq -e 'any(.[]; .onCreateCommand == "/usr/local/bin/podman-api-start")' <<<"$META"
 }
 
 @test "/dev/net/tun is mounted (pasta), so runArgs need only --userns" {

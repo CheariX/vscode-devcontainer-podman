@@ -117,6 +117,8 @@ RUN brew install --quiet ${BREW_PACKAGES} \
 # A rootful Podman machine blocks it in the device cgroup; there users add --device=/dev/net/tun.
 # ${devcontainerId}: one inner storage and one Claude config per dev container (no sharing between projects).
 # CLAUDE_CONFIG_DIR moves ~/.claude.json (login) into the volume as well.
+# podman-api-start also as onCreateCommand: VS Code runs postStartCommand only after the dotfiles,
+# which can take minutes. postStartCommand is still needed for restarts (onCreate runs once).
 # unmask=/proc/sys: netavark sets net.ipv4.ip_forward in the rootless network namespace when it
 # creates a bridge network (compose, podman network). New namespaces copy that value from the VM,
 # where it is 0 on Podman machine, so netavark has to write it. Only sysctls of network namespaces
@@ -137,6 +139,7 @@ LABEL devcontainer.metadata='[ \
       "DOCKER_HOST": "unix:///tmp/storage-run-1000/podman/podman.sock", \
       "CLAUDE_CONFIG_DIR": "/home/podman/.claude" \
     }, \
+    "onCreateCommand": "/usr/local/bin/podman-api-start", \
     "postStartCommand": "/usr/local/bin/podman-api-start", \
     "customizations": { "vscode": { "settings": { \
       "terminal.integrated.defaultProfile.linux": "fish" \

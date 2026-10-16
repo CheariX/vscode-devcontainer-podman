@@ -139,10 +139,8 @@ jobs:
           fi
           echo "IMG=$img" >> "$GITHUB_ENV"
 
-      # CI only: the runner's AppArmor profile for containers blocks the mounts inner Podman needs.
-      # The Mac (Podman machine, no AppArmor) does not need this.
       - name: Test
-        run: make test IMG="$IMG" DOCKER=podman EXTRA_RUN_FLAGS="--security-opt=apparmor=unconfined"
+        run: make test IMG="$IMG" DOCKER=podman
 
       - name: Export digest and podman version
         if: env.PUSH == 'true'
