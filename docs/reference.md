@@ -27,7 +27,7 @@ source=podman-storage-${devcontainerId},target=/home/podman/.local/share/contain
   podman volume rm podman-storage-<id>
   ```
 
-  Careful: `podman volume prune` also removes the volumes of currently stopped dev containers.
+  `podman volume prune` keeps volumes of existing (also stopped) containers, but removes those of every other project whose dev container is gone. To clean up only some, list unused ones first: `podman volume ls --filter dangling=true`.
 
 ## Claude Code config volume
 
