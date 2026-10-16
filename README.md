@@ -129,7 +129,7 @@ VS Code's `dotfiles.repository` setting works (also `dotfiles.installCommand` an
 | `:latest`, `:main` | yes | latest build |
 | `:sha-<commit>` | no | build of a specific commit |
 
-Images are rebuilt weekly (Fedora security updates) and only tagged after the test suite has passed on both architectures. They come with SBOM and provenance attestations.
+Images are rebuilt monthly (Fedora security updates) and only tagged after the test suite has passed on both architectures. They come with SBOM and provenance attestations.
 
 ## Limitations
 

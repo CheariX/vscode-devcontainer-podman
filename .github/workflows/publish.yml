@@ -7,8 +7,8 @@ on:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    # Weekly on Monday at 04:17 UTC (security fixes from Fedora). GitHub disables schedules after 60 days without repo activity.
-    - cron: '17 4 * * 1'
+    # Monthly on the 1st at 04:17 UTC (security fixes from Fedora). GitHub disables schedules after 60 days without repo activity.
+    - cron: '17 4 1 * *'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -256,6 +256,32 @@ jobs:
           docker buildx imagetools inspect "$tag"
           docker buildx imagetools inspect --raw "$tag" \
             | jq -e '[.manifests[].platform.architecture] | index("amd64") and index("arm64")'
+
+  # Not Dependabot: it proposes the highest tag, which is Rawhide (fedora:46) or a beta.
+  # fedora:latest moves on the official release day.
+  fedora-release:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Open an issue for a new Fedora release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(sed -n 's|^FROM quay.io/fedora/fedora:\([0-9]*\)$|\1|p' Containerfile)
+          latest=$(skopeo inspect docker://quay.io/fedora/fedora:latest | jq -r '.Labels["org.opencontainers.image.version"]')
+          echo "Containerfile: ${current}, fedora:latest: ${latest}"
+          test -n "$current" && test -n "$latest"
+          [ "$latest" -gt "$current" ] || exit 0
+          title="Fedora ${latest} released"
+          if [ -z "$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"${title}\" in:title" --json number --jq '.[].number')" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body "quay.io/fedora/fedora:latest is now Fedora ${latest}. Update FROM in the Containerfile (currently ${current}) in a PR; CI runs the tests."
+          fi
 
   notify:
     needs: [ prepare, build, merge ]

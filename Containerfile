@@ -7,7 +7,7 @@
 # Homebrew formulae preinstalled for the user (space-separated); override with --build-arg
 ARG BREW_PACKAGES="lazygit"
 
-# Only the Fedora release is fixed (Dependabot proposes the next one). Everything else is
+# Only the Fedora release is fixed (the scheduled workflow opens an issue for a new one). Everything else is
 # fresh on every build: dnf upgrade, latest Homebrew release, latest bottles.
 FROM quay.io/fedora/fedora:44
 # Honored by BuildKit (CI); Podman ignores SHELL for OCI images and uses /bin/sh (bash on Fedora)
