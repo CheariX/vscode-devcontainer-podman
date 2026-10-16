@@ -46,4 +46,4 @@ Not covered are files you run yourself on the Mac: `Makefile`, `package.json` sc
   podman machine init --volume ~/Code:~/Code
   ```
 
-- SELinux: the image currently sets `securityOpt: label=disable`, as the Podman project's guide for Podman in containers does. A confined type (`label=type:container_engine_t` / `label=nested`) is being evaluated.
+- SELinux: the image sets `securityOpt: label=disable`, as the Podman project's guide for Podman in containers does. The confined types `label=type:container_engine_t` and `label=nested` were tested on Podman machine (Fedora CoreOS, container-selinux 2.245): both deny access to `/dev/net/tun`, so pasta and with it inner container networking fail. Allowing it would need a machine-wide boolean (`container_use_devices`) that opens all devices to all containers.
