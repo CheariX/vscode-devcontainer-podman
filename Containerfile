@@ -33,6 +33,7 @@ RUN dnf -y --setopt=install_weak_deps=False upgrade \
         file \
         gcc \
         git-core \
+        git-lfs \
         gzip \
         less \
         make \
@@ -62,9 +63,10 @@ RUN dnf -y --setopt=install_weak_deps=False upgrade \
     && dnf clean all \
     && rm -rf /var/cache/dnf /var/cache/libdnf5 /var/log/dnf* /etc/machine-id \
     && touch /etc/containers/nodocker \
+    && git config --system --get filter.lfs.process \
     && podman --version \
     && /usr/libexec/docker/cli-plugins/docker-compose version \
-    && for t in bat eza fd fish fzf delta htop jq just rg tldr yq zoxide; do "$t" --version >/dev/null; done
+    && for t in bat eza fd fish fzf delta git-lfs htop jq just rg tldr yq zoxide; do "$t" --version >/dev/null; done
 
 # User podman (1000:1000) without extra groups. Subordinate ranges cover the 65536 IDs
 # an outer rootless container usually has (0..65535), leaving out the user's own ID.

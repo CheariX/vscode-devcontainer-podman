@@ -15,7 +15,7 @@ setup() {
 }
 
 @test "tools are installed" {
-    for t in bat brew delta eza fd fish fzf git htop jq just lazygit podman rg skopeo tldr yq zoxide; do
+    for t in bat brew delta eza fd fish fzf git git-lfs htop jq just lazygit podman rg skopeo tldr yq zoxide; do
         in_ctr "$t --version >/dev/null" || { echo "missing or broken: $t"; return 1; }
     done
 }
@@ -28,4 +28,8 @@ setup() {
 @test "brew is first in PATH" {
     run in_ctr 'echo "$PATH"'
     [[ "$output" == /home/linuxbrew/.linuxbrew/bin:* ]]
+}
+
+@test "git lfs filters are configured system-wide" {
+    in_ctr 'git config --system --get filter.lfs.process | grep -q "git-lfs filter-process"'
 }

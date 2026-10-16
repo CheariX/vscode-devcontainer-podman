@@ -23,7 +23,7 @@ On a **rootful** Podman machine also add `"--device=/dev/net/tun"` to `runArgs`.
 
 - **Podman** with `docker` CLI, `docker compose`, the Docker API socket (Testcontainers, VS Code Container Tools) and `skopeo`. Compose service names, published ports and healthchecks work.
 - **Homebrew** owned by you: `brew install` without root. Put project tools in `.devcontainer/Brewfile`, see [examples/devcontainer.json](examples/devcontainer.json).
-- CLI tools: `fish` (default terminal), `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, `htop`, `lazygit`, `git-delta`, `jq`, `yq`, `just`, `tldr`.
+- CLI tools: `fish` (default terminal), `eza`, `bat`, `fd`, `ripgrep`, `fzf`, `zoxide`, `htop`, `lazygit`, `git-delta`, `git-lfs`, `jq`, `yq`, `just`, `tldr`.
 - Your **dotfiles** (VS Code `dotfiles.repository`) are applied. There is no root, so install software with `brew`, not `apt`/`dnf`.
 - Inner images, compose volumes and the Claude Code login survive rebuilds (one volume each per dev container).
 
