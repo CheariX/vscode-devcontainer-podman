@@ -95,8 +95,9 @@ ENV HOMEBREW_PREFIX=/home/linuxbrew/.linuxbrew \
     HOMEBREW_NO_ANALYTICS=1 \
     HOMEBREW_NO_ENV_HINTS=1 \
     PATH=/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/usr/local/bin:/usr/bin
-# Latest stable Homebrew release (what the official installer and `brew update` use too)
-RUN tag="$(git ls-remote --tags --refs --sort=-version:refname https://github.com/Homebrew/brew '[0-9]*' | head -n1 | cut -d/ -f3)" \
+# Latest stable Homebrew release (what the official installer and `brew update` use too).
+# awk reads all of ls-remote's output: `head -n1` would end git with SIGPIPE, which fails under pipefail.
+RUN tag="$(git ls-remote --tags --refs --sort=-version:refname https://github.com/Homebrew/brew '[0-9]*' | awk -F/ 'NR == 1 { t = $3 } END { print t }')" \
     && test -n "$tag" \
     && git clone --quiet --branch "$tag" https://github.com/Homebrew/brew "${HOMEBREW_REPOSITORY}" \
     && mkdir -p "${HOMEBREW_PREFIX}/bin" "${HOMEBREW_PREFIX}/Caskroom" \
