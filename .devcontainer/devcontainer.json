@@ -17,8 +17,7 @@
     "dirs": "mkdir -p .vscode .git/hooks"
   },
   "runArgs": [
-    "--userns=keep-id:uid=1000,gid=1000",
-    "--device=/dev/net/tun"
+    "--userns=keep-id:uid=1000,gid=1000"
   ],
   // Files that run code on the Mac stay read-only inside the container
   "mounts": [
