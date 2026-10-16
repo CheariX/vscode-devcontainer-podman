@@ -1,11 +1,8 @@
 {
   "name": "my-project",
   "image": "ghcr.io/chearix/vscode-devcontainer-podman:5.8",
-  // Not allowed in the image label, so they have to be here
-  "runArgs": [
-    "--userns=keep-id:uid=1000,gid=1000",
-    "--device=/dev/net/tun"
-  ],
+  // Not allowed in the image label, so it has to be here (rootful Podman machine: add "--device=/dev/net/tun")
+  "runArgs": [ "--userns=keep-id:uid=1000,gid=1000" ],
   // Hardening: files that run code on the Mac stay read-only inside the container.
   // Bind mounts need existing sources, hence the mkdir.
   "initializeCommand": "mkdir -p .vscode .git/hooks",

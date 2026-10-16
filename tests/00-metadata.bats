@@ -33,6 +33,10 @@ setup_file() {
     jq -e 'any(.[]; .postStartCommand == "/usr/local/bin/podman-api-start")' <<<"$META"
 }
 
+@test "/dev/net/tun is mounted (pasta), so runArgs need only --userns" {
+    jq -e 'any(.[].mounts[]?; . == "source=/dev/net/tun,target=/dev/net/tun,type=bind")' <<<"$META"
+}
+
 @test "/proc/sys is writable (netavark sets ip_forward for bridge networks)" {
     jq -e 'any(.[]; (.securityOpt // []) | index("unmask=/proc/sys"))' <<<"$META"
 }

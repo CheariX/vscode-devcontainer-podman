@@ -112,7 +112,9 @@ RUN brew install --quiet ${BREW_PACKAGES} \
     && brew cleanup --prune=all \
     && rm -rf ~/.cache/Homebrew
 
-# runArgs (--userns=keep-id, --device=/dev/net/tun) cannot live here; see README.
+# runArgs (--userns=keep-id) cannot live here; see README.
+# /dev/net/tun (pasta) as a bind mount instead of --device: rootless Podman bind-mounts devices anyway.
+# A rootful Podman machine blocks it in the device cgroup; there users add --device=/dev/net/tun.
 # ${devcontainerId}: one inner storage and one Claude config per dev container (no sharing between projects).
 # CLAUDE_CONFIG_DIR moves ~/.claude.json (login) into the volume as well.
 # unmask=/proc/sys: netavark sets net.ipv4.ip_forward in the rootless network namespace when it
@@ -128,7 +130,8 @@ LABEL devcontainer.metadata='[ \
     "mounts": [ \
       "source=podman-storage-${devcontainerId},target=/home/podman/.local/share/containers,type=volume", \
       "source=claude-${devcontainerId},target=/home/podman/.claude,type=volume", \
-      "type=tmpfs,target=/tmp" \
+      "type=tmpfs,target=/tmp", \
+      "source=/dev/net/tun,target=/dev/net/tun,type=bind" \
     ], \
     "containerEnv": { \
       "DOCKER_HOST": "unix:///tmp/storage-run-1000/podman/podman.sock", \

@@ -11,8 +11,9 @@ DEVCONTAINER_SOCK=/tmp/storage-run-1000/podman/podman.sock
 start_devcontainer() {
     CTR="bats-$(basename "$BATS_TEST_FILENAME" .bats)-$BATS_ROOT_PID"
     export CTR
-    # The device lives in the Podman VM, not on the Mac running bats; NO_TUN=1 only for hosts without it
-    local tun=(--device=/dev/net/tun)
+    # The device lives in the Podman VM, not on the Mac running bats; NO_TUN=1 only for hosts without it.
+    # A bind mount like the label, not --device
+    local tun=("--mount=type=bind,source=/dev/net/tun,target=/dev/net/tun")
     [ "${NO_TUN:-}" = 1 ] && tun=()
     # shellcheck disable=SC2086 # EXTRA_RUN_FLAGS is a list of flags
     "$DOCKER" run -d --name "$CTR" --init \

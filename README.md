@@ -15,14 +15,11 @@ Create `.devcontainer/devcontainer.json` in your project:
 {
   "name": "my-project",
   "image": "ghcr.io/chearix/vscode-devcontainer-podman:5.8",
-  "runArgs": [
-    "--userns=keep-id:uid=1000,gid=1000",
-    "--device=/dev/net/tun"
-  ]
+  "runArgs": [ "--userns=keep-id:uid=1000,gid=1000" ]
 }
 ```
 
-The `runArgs` have to live in your file because the image label cannot carry them. Everything else comes with the image: the user, the storage volume, `/tmp` as tmpfs, `DOCKER_HOST`, and the API service.
+`runArgs` have to live in your file because the image label cannot carry them. On a rootful Podman machine also add `"--device=/dev/net/tun"`. Everything else comes with the image: the user, the storage volume, `/tmp` as tmpfs, `DOCKER_HOST`, and the API service.
 
 ### Recommended: protect your Mac from the workspace
 
@@ -98,7 +95,7 @@ source=podman-storage-${devcontainerId},target=/home/podman/.local/share/contain
 
 `DOCKER_HOST` points at Podman's API socket, which `postStartCommand` starts. `docker compose`, `podman compose`, Testcontainers and the VS Code Container Tools work against it. `postStartCommand` also starts `podman-healthcheck-runner`, which runs container healthchecks: Podman schedules them with systemd timers, which the container does not have. Without it, `docker compose up --wait` and `depends_on: condition: service_healthy` would wait forever.
 
-Inner containers get their own network namespace through pasta, which is why `--device=/dev/net/tun` is needed. So service names, `podman network` and `-p` work as usual. To reach a service from the Mac, publish it (`-p 8080:80` or `ports:` in compose). VS Code then forwards `localhost:8080` to the Mac, or you list it in `forwardPorts`.
+Inner containers get their own network namespace through pasta, which needs `/dev/net/tun` (the image label mounts it). So service names, `podman network` and `-p` work as usual. To reach a service from the Mac, publish it (`-p 8080:80` or `ports:` in compose). VS Code then forwards `localhost:8080` to the Mac, or you list it in `forwardPorts`.
 
 ## Homebrew
 
